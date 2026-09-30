@@ -124,12 +124,12 @@ if ($env:SIGNPATH_API_TOKEN) {
     } until ($statusInfo.isFinalStatus -or [DateTime]::UtcNow -ge $deadline)
 
     if (-not $statusInfo.isFinalStatus) {
-      Write-SignFailureDetail "签名请求 ${timeoutSeconds}s 内未达终态（当前状态: $($statusInfo.status)）。若策略启用了人工审批，需在门户批准；或经 SIGNPATH_TIMEOUT_SECONDS 调大超时。"
+      Write-SignFailureDetail "签名请求 ${timeoutSeconds}s 内未达终态（当前状态: $($statusInfo.status)）。请求: $requestUrl`n若策略启用了人工审批，需在门户批准；或经 SIGNPATH_TIMEOUT_SECONDS 调大超时。"
       Write-Error "SignPath 签名请求 ${timeoutSeconds}s 内未达终态（当前状态: $($statusInfo.status)）。"
       exit 1
     }
     if ($statusInfo.status -ne 'Completed') {
-      Write-SignFailureDetail "签名请求终态为 $($statusInfo.status)（非 Completed）。到门户该请求详情页查看原因（凭证权限 / 策略限制 / artifact 格式问题）。"
+      Write-SignFailureDetail "签名请求终态为 $($statusInfo.status)（非 Completed）。请求详情页: $requestUrl`n到门户该页查看失败原因（凭证权限 / 策略限制 / artifact 配置不匹配等）。"
       Write-Error "SignPath 签名请求终态为 $($statusInfo.status)（非 Completed）。"
       exit 1
     }
