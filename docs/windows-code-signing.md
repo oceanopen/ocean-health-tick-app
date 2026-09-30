@@ -88,10 +88,12 @@ CI (release-assets.yml, windows-latest 矩阵)
 POST https://app.signpath.io/Api/v1/{orgId}/SigningRequests/SubmitWithArtifact
      multipart: projectSlug / signingPolicySlug / artifact(+description) → 201 + Location 头
 GET  {Location}/Status         → 轮询至终态（Completed / Failed / Denied / Canceled）
-GET  {Location}/SignedArtifact → 下载 → 临时文件 → 原子替换原路径
+GET  {Location}/SignedArtifact → 下载 zip → 解包取同名文件 → 原子替换原路径
 ```
 
-门户片段里的 `Submit-SigningRequest` PowerShell 封装未采用——上述三端点内联进 sign.ps1（约 50 行），避免外部模块依赖，语义一致。CI 侧凭证只有 `SIGNPATH_API_TOKEN`，配置见下节。
+SignPath 的产物模型是 **zip-in/zip-out**：待签文件打包进 zip 提交（文件置于 zip 根部），返回的签名产物也是 zip——官方 [github-action-submit-signing-request](https://github.com/SignPath/github-action-submit-signing-request) 对返回产物同样默认按 zip 解包。门户片段里的 `Submit-SigningRequest` PowerShell 封装未采用——上述三端点内联进 sign.ps1，避免外部模块依赖，语义一致。CI 侧凭证只有 `SIGNPATH_API_TOKEN`，配置见下节。
+
+> **排查注意**：tauri bundler 会吞掉 signCommand 子进程的 stdout/stderr，签名失败在构建日志里只显示 `failed to run pwsh`。sign.ps1 会把失败详情写入 `GITHUB_STEP_SUMMARY`（run 汇总页直接可见）与 `RUNNER_TEMP\tauri-sign-error.log`（workflow 的 failure 兜底步骤打印），排查看这两处。
 
 ### 换正式证书（Foundation 把 release 证书挂进 org 后）
 

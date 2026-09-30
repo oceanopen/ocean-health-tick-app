@@ -94,6 +94,16 @@ jobs:
           releaseDraft: false
           prerelease: false
 
+      # 签名失败诊断兜底：tauri bundler 吞掉 signCommand 子进程的 stdout/stderr
+      # （失败只报 "failed to run pwsh"），sign.ps1 把失败详情写进 RUNNER_TEMP
+      # 固定文件与 GITHUB_STEP_SUMMARY（run 汇总页直接可见），此步骤兜底打印文件。
+      - name: Print signing failure details
+        if: failure() && matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'tauri-sign-error.log'
+          if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log } else { 'sign.ps1 未写错误日志：失败发生在签名调用之外（检查脚本路径与 pwsh 启动）' }
+
   # ============================================================
   # Gitee 同步：矩阵构建全部完成后执行（best-effort，绝不阻塞 GitHub 主流程）
   # 实现已抽离为可复用 workflow（.github/workflows/release-gitee-sync.yml），此处仅声明依赖与调用。
