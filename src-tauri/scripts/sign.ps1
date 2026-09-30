@@ -3,8 +3,10 @@
 # tauri build 经 --config src-tauri/tauri.windows.conf.json 注入 signCommand 后（CI 构建与
 # 本地 Windows 手动签名均适用），bundler 会对 Windows 侧所有待签产物逐个调用本脚本：
 # 主程序 exe、NSIS 安装器、NSIS 卸载器等。待签文件的绝对路径通过最后一个位置参数传入
-# （tauri 的 %1 占位符替换而来；相对路径参数由 bundler 相对构建 cwd 转绝对，故本脚本
-# 总是收到绝对路径）。
+# （tauri 的 %1 占位符替换而来；bundler 会把存在性探测通过的相对路径参数按其 cwd 转为
+# 绝对路径——该 cwd 是 src-tauri 目录（CLI bundle 前先 chdir 进 src-tauri），故
+# signCommand 里本脚本的路径必须写作 scripts/sign.ps1，写作 src-tauri/scripts/sign.ps1
+# 会探测失败、以相对路径传给 pwsh 而找不到脚本）。
 #
 # 签名走 SignPath（Foundation 开源签名，REST API 直提）：证书与策略绑定全在门户侧
 # （证书挂项目下、由 signing policy 引用），CI 侧只持 API token、永不接触证书材料——

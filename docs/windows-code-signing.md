@@ -36,11 +36,13 @@ CI (release-assets.yml, windows-latest 矩阵)
   args: --config src-tauri/tauri.windows.conf.json   ← Windows 专属 override（与 tauri.dev.conf.json 场景 override 同模式）
         │
         ▼ 深层合并进主配置
-  bundle.windows.signCommand = { cmd: "pwsh", args: [..., "src-tauri/scripts/sign.ps1", "%1"] }
+  bundle.windows.signCommand = { cmd: "pwsh", args: [..., "scripts/sign.ps1", "%1"] }
         │
         ▼ tauri bundler 对每个 Windows 待签产物逐个调用
-  （主程序 exe → NSIS 安装器 → NSIS 卸载器；%1 替换为产物绝对路径，
-    相对路径参数由 bundler 相对构建 cwd 转绝对，卸载器签名 hook 在别的目录也成立）
+  （主程序 exe → NSIS 安装器 → NSIS 卸载器；%1 替换为产物绝对路径；相对路径参数按
+    bundler 的 cwd 探测存在后才转绝对——CLI bundle 前已 chdir 进 src-tauri，故脚本
+    路径必须写作 scripts/sign.ps1（相对 src-tauri），写成 src-tauri/scripts/... 会
+    探测失败、以相对路径传入导致 pwsh 找不到脚本，报 failed to run pwsh）
         │
         ▼
   src-tauri/scripts/sign.ps1 按凭证两路分派：
