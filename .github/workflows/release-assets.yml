@@ -96,13 +96,25 @@ jobs:
 
       # 签名失败诊断兜底：tauri bundler 吞掉 signCommand 子进程的 stdout/stderr
       # （失败只报 "failed to run pwsh"），sign.ps1 把失败详情写进 RUNNER_TEMP
-      # 固定文件与 GITHUB_STEP_SUMMARY（run 汇总页直接可见），此步骤兜底打印文件。
+      # 固定文件与 GITHUB_STEP_SUMMARY（run 汇总页直接可见），此步骤兜底打印文件，
+      # 并把内容以 ::error:: 注解输出——注解在 run 汇总页匿名可见（CI 日志需登录）。
       - name: Print signing failure details
         if: failure() && matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
           $log = Join-Path $env:RUNNER_TEMP 'tauri-sign-error.log'
-          if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log } else { 'sign.ps1 未写错误日志：失败发生在签名调用之外（检查脚本路径与 pwsh 启动）' }
+          if (-not (Test-Path -LiteralPath $log)) {
+            Write-Output '::error title=sign.ps1 诊断::未写错误日志——失败发生在签名调用之外（检查脚本路径与 pwsh 启动）'
+            exit 0
+          }
+          Get-Content -LiteralPath $log
+          $content = (Get-Content -LiteralPath $log -Raw).Trim()
+          $chunks = [Math]::Ceiling($content.Length / 600)
+          for ($i = 0; $i -lt $chunks; $i++) {
+            $part = if ($i -eq $chunks - 1) { $content.Substring($i * 600) } else { $content.Substring($i * 600, 600) }
+            $escaped = $part -replace '%', '%25' -replace "`r", '%0D' -replace "`n", '%0A'
+            Write-Output ("::error title=sign.ps1 签名失败详情 ({0}/{1})::{2}" -f ($i + 1), $chunks, $escaped)
+          }
 
   # ============================================================
   # Gitee 同步：矩阵构建全部完成后执行（best-effort，绝不阻塞 GitHub 主流程）
