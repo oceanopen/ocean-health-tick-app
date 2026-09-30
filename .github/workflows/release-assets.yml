@@ -17,9 +17,11 @@ jobs:
           # macOS 构建：Intel（x86_64）
           - platform: macos-latest
             args: --target x86_64-apple-darwin
-          # Windows 构建：默认 target，无需额外参数
+          # Windows 构建：--config 合并 Windows 专属构建配置（src-tauri/tauri.windows.conf.json），
+          # 仅注入 bundle.windows.signCommand → 构建时经 scripts/sign.ps1 做 Authenticode 签名。
+          # 凭证未配置时脚本显式跳过，构建行为与无此参数时一致。macOS 矩阵不传（Windows 专属配置）。
           - platform: windows-latest
-            args: ''
+            args: '--config src-tauri/tauri.windows.conf.json'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -64,12 +66,25 @@ jobs:
       # updaterJsonPreferNsis: 与 Windows nsis-only 对齐，latest.json 里 Windows 走 nsis 路径而非 msi
       # 注：用 tauri-action 内置 release 替代了原先的 softprops/action-gh-release，
       #     因为 latest.json 必须由 tauri-action 在 release 阶段生成（手动上传会漏）。
+      #
+      # Windows Authenticode 签名（与 updater minisign 签名是两套独立机制）：
+      #   - Windows 矩阵 args 里的 --config 注入 signCommand，bundler 构建过程中对主程序 exe、
+      #     NSIS 安装器、卸载器逐个调用 scripts/sign.ps1
+      #   - sign.ps1 走 SignPath REST API，凭证仅 SIGNPATH_API_TOKEN；secret 未配置时
+      #     脚本显式跳过，构建照常完成（CI 不变红）
+      #   - 正式证书到位后仅把 SIGNPATH_SIGNING_POLICY_SLUG 换成 release 策略 slug
+      #   - 配置与验证详见 docs/windows-code-signing.md
       - name: Build and release
         if: github.ref_type == 'tag'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          # --- Windows 代码签名：SignPath REST API 直提 ---
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          # 策略 slug 沿用仓库「凭证统一走 secret」惯例；不配则用脚本内置默认
+          # test-signing。正式证书 + release-signing 策略就绪后改此值完成切换。
+          SIGNPATH_SIGNING_POLICY_SLUG: ${{ secrets.SIGNPATH_SIGNING_POLICY_SLUG }}
         with:
           tauriScript: pnpm tauri:build
           args: ${{ matrix.args }}
