@@ -15,15 +15,15 @@
 #   POST /SigningRequests/SubmitWithArtifact（multipart）→ 201 + Location 头
 #   GET  {Location}/Status 轮询至终态（Completed/Failed/Denied/Canceled）
 #   GET  {Location}/SignedArtifact 下载 → 回写原路径
-# SignPath 的产物模型是 zip-in/zip-out：待签文件打包进 zip 提交，返回的签名产物也是
-# zip（官方 github-action-submit-signing-request 对返回产物同样默认按 zip 解包），
-# 故本脚本先 zip 打包、最后解包取回同名文件回写原路径。
+# 提交形态为裸 PE 文件：本项目沿用项目默认 artifact configuration（"Initial version"，
+# 顶层 <pe-file>），约定「提交原始 exe、返回签名后 exe」；多文件 zip 流（<zip-file>
+# 配置）是另一种形态，单文件签名不需要。
 # 回写必须是同一路径：tauri bundler 的后续产物链（安装器包含主程序 exe）与 updater
 # minisign .sig 的计算都以其为准——签名必须发生在 build 过程中，不能事后补签。
 #
 # 注意：bundler 会吞掉本脚本的 stdout/stderr（签名失败只报 "failed to run pwsh"），
 # 故失败详情额外写入 GITHUB_STEP_SUMMARY 与 RUNNER_TEMP 固定文件（workflow 的
-# failure 步骤兜底打印），否则无从排查。
+# failure 步骤兜底打印并转为 ::error:: 注解），否则无从排查。
 #
 # 未配置 SIGNPATH_API_TOKEN 时输出醒目跳过日志后 exit 0，构建照常完成（secrets
 # 未配置时 CI 行为与引入签名前完全一致，不会变红）。
@@ -79,22 +79,13 @@ if ($env:SIGNPATH_API_TOKEN) {
     } catch { }
   }
 
-  Add-Type -AssemblyName System.IO.Compression.FileSystem
-  $tempRoot = [System.IO.Path]::GetTempPath()
   $fileName = [System.IO.Path]::GetFileName($TargetFile)
-  # 中间产物：打包目录 / 提交 zip / 返回 zip / 解包目录，finally 统一清理。
-  $stageDir = Join-Path $tempRoot "tauri-signpath-stage-$(New-Guid)"
-  $zipPath = Join-Path $tempRoot "tauri-signpath-in-$(New-Guid).zip"
-  $signedZipPath = Join-Path $tempRoot "tauri-signpath-out-$(New-Guid).zip"
-  $extractDir = Join-Path $tempRoot "tauri-signpath-extract-$(New-Guid)"
+  $tempRoot = [System.IO.Path]::GetTempPath()
+  $signedTemp = Join-Path $tempRoot "tauri-signpath-$(New-Guid)$([System.IO.Path]::GetExtension($TargetFile))"
 
   try {
-    # 1. 打包待签文件为 zip（文件置于 zip 根部）并提交签名请求。description 取
-    #    文件名，便于门户审计列表辨认各产物（主程序 exe / 安装器 / 卸载器各一次）。
-    New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
-    Copy-Item -LiteralPath $TargetFile -Destination (Join-Path $stageDir $fileName)
-    [System.IO.Compression.ZipFile]::CreateFromDirectory($stageDir, $zipPath)
-
+    # 1. 提交签名请求（裸 PE 文件，见文件头注）。description 取文件名，便于门户
+    #    审计列表辨认各产物（主程序 exe / 安装器 / 卸载器各提交一次）。
     $response = Invoke-WebRequest -Method Post `
       -Uri "$apiBase/$orgId/SigningRequests/SubmitWithArtifact" `
       -Headers $authHeader `
@@ -102,7 +93,7 @@ if ($env:SIGNPATH_API_TOKEN) {
         projectSlug = $projectSlug
         signingPolicySlug = $policySlug
         description = $fileName
-        artifact = Get-Item -LiteralPath $zipPath
+        artifact = Get-Item -LiteralPath $TargetFile
       }
     # 201 成功；Location 头为签名请求实体 URL（相对路径时补 API 域名）。
     $requestUrl = [string]$response.Headers.Location
@@ -124,28 +115,20 @@ if ($env:SIGNPATH_API_TOKEN) {
     } until ($statusInfo.isFinalStatus -or [DateTime]::UtcNow -ge $deadline)
 
     if (-not $statusInfo.isFinalStatus) {
-      Write-SignFailureDetail "签名请求 ${timeoutSeconds}s 内未达终态（当前状态: $($statusInfo.status)）。请求: $requestUrl`n若策略启用了人工审批，需在门户批准；或经 SIGNPATH_TIMEOUT_SECONDS 调大超时。"
+      Write-SignFailureDetail "签名请求 ${timeoutSeconds}s 内未达终态（当前状态: $($statusInfo.status)）。请求详情页: $requestUrl`n若策略启用了人工审批，需在门户批准；或经 SIGNPATH_TIMEOUT_SECONDS 调大超时。"
       Write-Error "SignPath 签名请求 ${timeoutSeconds}s 内未达终态（当前状态: $($statusInfo.status)）。"
       exit 1
     }
     if ($statusInfo.status -ne 'Completed') {
-      Write-SignFailureDetail "签名请求终态为 $($statusInfo.status)（非 Completed）。请求详情页: $requestUrl`n到门户该页查看失败原因（凭证权限 / 策略限制 / artifact 配置不匹配等）。"
+      Write-SignFailureDetail "签名请求终态为 $($statusInfo.status)（非 Completed）。请求详情页: $requestUrl`n到门户该页查看失败原因（凭证权限 / 策略限制 / artifact 与其 artifact configuration 类型不符等）。"
       Write-Error "SignPath 签名请求终态为 $($statusInfo.status)（非 Completed）。"
       exit 1
     }
 
-    # 3. 下载签名 zip，解包取回同名文件，先落解包目录再替换原路径：任一步中断都
-    #    不至于损坏原始未签名产物（重跑 CI 即可恢复）。
-    Invoke-WebRequest -Method Get -Uri "$requestUrl/SignedArtifact" -Headers $authHeader -OutFile $signedZipPath
-    [System.IO.Compression.ZipFile]::ExtractToDirectory($signedZipPath, $extractDir)
-    $signedFile = Join-Path $extractDir $fileName
-    if (-not (Test-Path -LiteralPath $signedFile)) {
-      $zipContent = (Get-ChildItem -LiteralPath $extractDir -Recurse | ForEach-Object { $_.FullName }) -join '; '
-      Write-SignFailureDetail "签名产物 zip 中未找到 $fileName。zip 实际内容: $zipContent"
-      Write-Error "SignPath 签名产物 zip 中未找到 $fileName。"
-      exit 1
-    }
-    Move-Item -LiteralPath $signedFile -Destination $TargetFile -Force
+    # 3. 下载签名后产物并回写。先落临时文件再替换原路径：下载中断不至于损坏
+    #    原始未签名产物（重跑 CI 即可恢复）。
+    Invoke-WebRequest -Method Get -Uri "$requestUrl/SignedArtifact" -Headers $authHeader -OutFile $signedTemp
+    Move-Item -LiteralPath $signedTemp -Destination $TargetFile -Force
     Write-Host "==> [sign.ps1] SignPath 签名完成，已回写: $TargetFile"
     exit 0
   }
@@ -158,11 +141,7 @@ if ($env:SIGNPATH_API_TOKEN) {
     exit 1
   }
   finally {
-    foreach ($p in @($stageDir, $zipPath, $signedZipPath, $extractDir)) {
-      if ($p -and (Test-Path -LiteralPath $p)) {
-        Remove-Item -LiteralPath $p -Recurse -Force -ErrorAction SilentlyContinue
-      }
-    }
+    Remove-Item -LiteralPath $signedTemp -Force -ErrorAction SilentlyContinue
   }
 }
 

@@ -90,10 +90,10 @@ CI (release-assets.yml, windows-latest 矩阵)
 POST https://app.signpath.io/Api/v1/{orgId}/SigningRequests/SubmitWithArtifact
      multipart: projectSlug / signingPolicySlug / artifact(+description) → 201 + Location 头
 GET  {Location}/Status         → 轮询至终态（Completed / Failed / Denied / Canceled）
-GET  {Location}/SignedArtifact → 下载 zip → 解包取同名文件 → 原子替换原路径
+GET  {Location}/SignedArtifact → 下载 → 临时文件 → 原子替换原路径
 ```
 
-SignPath 的产物模型是 **zip-in/zip-out**：待签文件打包进 zip 提交（文件置于 zip 根部），返回的签名产物也是 zip——官方 [github-action-submit-signing-request](https://github.com/SignPath/github-action-submit-signing-request) 对返回产物同样默认按 zip 解包。门户片段里的 `Submit-SigningRequest` PowerShell 封装未采用——上述三端点内联进 sign.ps1，避免外部模块依赖，语义一致。CI 侧凭证只有 `SIGNPATH_API_TOKEN`，配置见下节。
+**提交形态由 artifact configuration 决定**：本项目沿用项目默认配置 "Initial version"（顶层 `<pe-file>`）——约定提交**裸 PE 文件**、返回签名后文件，故脚本直接提交原始 exe。若配置写成 `<zip-file>` 包裹（多文件场景、官方 [github-action-submit-signing-request](https://github.com/SignPath/github-action-submit-signing-request) 默认解包的那种形态），则须提交 zip；两者错配会报 "The file does not correspond to the specified file type"。门户片段里的 `Submit-SigningRequest` PowerShell 封装未采用——上述三端点内联进 sign.ps1，避免外部模块依赖，语义一致。CI 侧凭证只有 `SIGNPATH_API_TOKEN`，配置见下节。
 
 > **排查注意**：tauri bundler 会吞掉 signCommand 子进程的 stdout/stderr，签名失败在构建日志里只显示 `failed to run pwsh`。sign.ps1 会把失败详情写入 `GITHUB_STEP_SUMMARY`（run 汇总页直接可见）与 `RUNNER_TEMP\tauri-sign-error.log`（workflow 的 failure 兜底步骤打印），排查看这两处。
 
@@ -161,7 +161,7 @@ pnpm tauri build --config src-tauri/tauri.windows.conf.json
 | CI 日志出现「跳过 Windows 代码签名」 | `SIGNPATH_API_TOKEN` 未配置或名称拼写不一致（大小写敏感） |
 | SignPath 401/403 | API token 失效（CI 用户详情页重新生成并更新 secret）；或 CI 用户不在策略的 Submitters 里 |
 | SignPath 轮询到超时 | 策略勾了审批（请求卡在 WaitingForApproval 等人批）：门户批准，或调大 `SIGNPATH_TIMEOUT_SECONDS`；网络抖动则重跑 CI |
-| SignPath 终态 Failed / Denied | 到门户该请求详情页看具体原因（如 malware 扫描误拦，可在策略上关闭该扫描） |
+| SignPath 终态 Failed / Denied | 到门户该请求详情页看具体原因。"The file does not correspond to the specified file type" = 提交形态与 artifact configuration 错配（配置为裸 `<pe-file>` 却提交了 zip，或反之），核对两者一致；malware 扫描误拦可在策略上关闭 |
 | 自签测试证书 `verify /pa` 不通过 | 预期行为（无第三方信任链），用 `Get-AuthenticodeSignature` 确认 `SignerCertificate` 主体为 `We Health Tick Test` 即管道正常 |
 | 签名后仍被个别引擎检出 | 信誉需要时间积累；签名初期个别启发式引擎仍可能告警，可向该引擎厂商提交误报申诉 |
 | macOS 矩阵构建失败 | 误把 `--config src-tauri/tauri.windows.conf.json` 传给了非 Windows 矩阵（Windows 专属配置） |
