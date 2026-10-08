@@ -1,22 +1,20 @@
-# 手动触发的自定义产品信息构建：
-# 与正式 tag 构建（release-assets.yml）的差异：通过仓库 Variables 注入公司名与产品名，
-# 仅产出 MSI 安装包（MSI 携带完整的公司名/发布者元数据，NSIS 模板不含 CompanyName）。
-# 不创建 Release/Tag、不做任何签名；文件信息展示在 Job Summary，产物以 Artifact 供下载。
+# 手动触发的自定义品牌构建：通过仓库 Variables 注入公司名与产品名，产出 MSI + NSIS 安装包。
+# 与正式 tag 构建（release-assets.yml）的差异：不创建 Release/Tag、不签名；
+# 分发文件名中的空格替换为 "."，安装包内元数据仍保持原始产品名；
+# NSIS 安装包 exe 无 CompanyName 为上游模板已知限制。
 #
-# 必需的仓库 Variables（Settings → Secrets and variables → Actions → Variables，
-# 属敏感数据，不设默认值，缺失则构建直接报错终止）：
+# 必需的仓库 Variables（Settings → Secrets and variables → Actions → Variables，缺失则构建报错终止）：
 #   CUSTOM_APP_COMPANY_NAME  公司名：写入主程序 exe 的 CompanyName、MSI 的 Manufacturer（发布者）
 #   CUSTOM_APP_PRODUCT_NAME  产品名：写入 exe 的 ProductName/FileDescription，并决定安装包文件名
 #
-# 版本号不在此覆盖，自动读取仓库 tauri.conf.json 的 version；
-# 版权信息自动取当前年份，描述固定为「健康打卡桌面小工具」。
+# 版本号自动读取 tauri.conf.json，版权自动取当前年份。
 name: Custom Build For Windows
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-msi:
+  build-windows:
     runs-on: windows-latest
     env:
       # 统一经 env 中转读取 Variables，shell 内只引用环境变量，避免表达式直接内插
@@ -66,7 +64,7 @@ jobs:
       # - productName / publisher 来自仓库 Variables（经 env 中转，node 从 process.env 读取并生成 JSON，天然处理转义）
       # - createUpdaterArtifacts: false —— 内部构建不发布，免去 updater 签名私钥要求
       # - plugins.updater.active: false —— 禁用官方自动更新，防止自定义品牌构建静默升级回官方正式品牌
-      # - targets 仅 msi —— 不覆盖 version，自动读取仓库 tauri.conf.json 的版本号
+      # - targets msi + nsis —— 不覆盖 version，自动读取仓库 tauri.conf.json 的版本号
       - name: Generate config overlay
         shell: bash
         run: |
@@ -75,7 +73,7 @@ jobs:
           const conf = {
             productName: process.env.CUSTOM_APP_PRODUCT_NAME,
             bundle: {
-              targets: ["msi"],
+              targets: ["msi", "nsis"],
               publisher: process.env.CUSTOM_APP_COMPANY_NAME,
               copyright: `版权所有©${new Date().getFullYear()}`,
               shortDescription: "健康打卡桌面小工具",
@@ -91,12 +89,27 @@ jobs:
           '
           cat src-tauri/tauri.custom.conf.json
 
-      # 构建命令与 tauri-action 的调用方式完全同构（tauriScript: pnpm tauri:build + build 子命令），
-      # --config 深度合并覆盖 tauri.conf.json
-      - name: Build Windows MSI
+      # 构建命令与 tauri-action 调用方式同构，--config 深度合并覆盖 tauri.conf.json，
+      # 一次产出 MSI + NSIS 安装包
+      - name: Build Windows installers (MSI + NSIS)
         run: pnpm tauri:build build --config src-tauri/tauri.custom.conf.json
 
-      # 展示文件信息：日志 + Job Summary（文件名 / 大小 / SHA256）
+      # 分发文件名中的空格替换为 "."；仅重命名产物，不影响安装包内元数据
+      - name: Rename artifacts (spaces to dots)
+        shell: bash
+        run: |
+          shopt -s nullglob
+          for f in src-tauri/target/release/bundle/msi/*.msi src-tauri/target/release/bundle/nsis/*.exe; do
+            dir=$(dirname "$f")
+            name=$(basename "$f")
+            new_name="${name// /.}"
+            if [ "$name" != "$new_name" ]; then
+              mv "$f" "$dir/$new_name"
+              echo "renamed: $name -> $new_name"
+            fi
+          done
+
+      # 文件名 / 大小 / SHA256 写入 Job Summary（MSI + NSIS）
       - name: Show build info
         shell: bash
         run: |
@@ -104,7 +117,8 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| 文件名 | 大小 | SHA256 |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          for f in src-tauri/target/release/bundle/msi/*.msi; do
+          shopt -s nullglob
+          for f in src-tauri/target/release/bundle/msi/*.msi src-tauri/target/release/bundle/nsis/*.exe; do
             name=$(basename "$f")
             size=$(du -h "$f" | cut -f1)
             sha=$(sha256sum "$f" | cut -d' ' -f1)
@@ -114,10 +128,12 @@ jobs:
             echo "| \`$name\` | $size | \`$sha\` |" >> "$GITHUB_STEP_SUMMARY"
           done
 
-      # 上传产物到 Artifact，在本 workflow 运行页面底部 Artifacts 区下载
+      # 上传 MSI + NSIS 到 Artifact（运行页面底部下载）
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: custom-build-windows-msi
-          path: src-tauri/target/release/bundle/msi/*.msi
+          name: custom-build-windows
+          path: |
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: error
