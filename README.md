@@ -1,4 +1,4 @@
-# We Health Tick
+# Ocean Health Tick
 
 健康打卡桌面应用。
 
@@ -110,12 +110,12 @@ pnpm release
 
 ### CI 自动构建（macOS + Windows）
 
-项目配置了 GitHub Actions 工作流（`.github/workflows/build.yml`），支持自动构建多平台产物：
+项目配置了 GitHub Actions 工作流（`.github/workflows/release-assets.yml`），支持自动构建多平台产物：
 
 - **触发方式**：推送 `v*` 格式的 tag，或手动触发 workflow
-- **产物命名**：
-  - macOS: `WeHealthTick-{version}-macos-universal.dmg`
-  - Windows: `WeHealthTick-{version}-windows-x64-setup.exe`
+- **产物命名**（与 docs/updater-signing.md 一致）：
+  - macOS: `Ocean Health Tick_{version}_universal.dmg` / `.app.tar.gz` / `.app.tar.gz.sig`
+  - Windows: `Ocean Health Tick_{version}_x64-setup.exe` / `.exe.sig`
 
 ```bash
 # 手动触发自动构建
@@ -130,7 +130,7 @@ git push origin v0.1.0
 这是 macOS 对从网络下载（如 DMG/CI 产物）的应用添加了隔离属性（quarantine）导致的。运行以下命令清除隔离属性后即可正常打开：
 
 ```bash
-xattr -cr "/Applications/We Health Tick.app"
+xattr -cr "/Applications/Ocean Health Tick.app"
 ```
 
 > 说明：`xattr` 是 macOS 自带的扩展属性工具，`-c` 清除所有属性，`-r` 递归处理 `.app` 包内的所有文件。
@@ -153,13 +153,13 @@ xattr -cr "/Applications/We Health Tick.app"
 
 可以用 [DBeaver](https://dbeaver.io/) 查看 sqlite 数据库（文件名固定为 `app.db`，位于 Tauri 的 `app_data_dir` 下）：
 
-| 平台    | 环境    | 路径                                                          |
-| ------- | ------- | ------------------------------------------------------------- |
-| macOS   | Release | `~/Library/Application Support/com.we.health.tick/app.db`     |
-| macOS   | Dev     | `~/Library/Application Support/com.we.health.tick.dev/app.db` |
-| Windows | Release | `%APPDATA%\com.we.health.tick\app.db`                         |
-| Windows | Dev     | `%APPDATA%\com.we.health.tick.dev\app.db`                     |
-| Linux   | Release | `~/.local/share/com.we.health.tick/app.db`                    |
-| Linux   | Dev     | `~/.local/share/com.we.health.tick.dev/app.db`                |
+| 平台    | 环境    | 路径                                                             |
+| ------- | ------- | ---------------------------------------------------------------- |
+| macOS   | Release | `~/Library/Application Support/com.ocean.health.tick/app.db`     |
+| macOS   | Dev     | `~/Library/Application Support/com.ocean.health.tick.dev/app.db` |
+| Windows | Release | `%APPDATA%\com.ocean.health.tick\app.db`                         |
+| Windows | Dev     | `%APPDATA%\com.ocean.health.tick.dev\app.db`                     |
+| Linux   | Release | `~/.local/share/com.ocean.health.tick/app.db`                    |
+| Linux   | Dev     | `~/.local/share/com.ocean.health.tick.dev/app.db`                |
 
 > Dev 与 Release 使用不同 identifier，数据自动隔离。`~` 为用户主目录；Windows `%APPDATA%` 对应 `C:\Users\<用户名>\AppData\Roaming`；Linux 遵循 XDG 规范，若设置了 `XDG_DATA_HOME` 则以其替代 `~/.local/share`。

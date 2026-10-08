@@ -1,17 +1,17 @@
 [package]
-name = "we-health-tick"
+name = "ocean-health-tick"
 version = "0.2.8"
-description = "We Health Tick Desktop App"
+description = "Ocean Health Tick Desktop App"
 authors = ["oceangao"]
 license = ""
 repository = ""
 edition = "2024"
 rust-version = "1.85.0"
-# 多 binary 项目（we-health-tick 主 app + export_bindings 绑定生成器）必须指定默认运行目标，
+# 多 binary 项目（ocean-health-tick 主 app + export_bindings 绑定生成器）必须指定默认运行目标，
 # 否则 `cargo run`（tauri dev 底层调用，不带 --bin）会因目标歧义报错：
 #   error: `cargo run` could not determine which binary to run
 # gen:bindings 脚本显式 --bin export_bindings 不受此设置影响。
-default-run = "we-health-tick"
+default-run = "ocean-health-tick"
 
 # gen-bindings：export_bindings 的门控 feature。
 # tauri build 不启用此 feature → bundler 阶段 1 按 required-features 过滤掉 export_bindings
@@ -23,7 +23,7 @@ gen-bindings = []
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "we_health_tick_lib"
+name = "ocean_health_tick_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 # export_bindings：tauri-specta 绑定生成器。

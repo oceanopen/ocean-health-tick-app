@@ -52,16 +52,16 @@
  * 当用户双击应用图标或执行 `cargo run` 时，操作系统从这里开始执行。
  *
  * 这里只做了一件事：调用 lib.rs 中定义的 `run()` 函数。
- * 使用 `we_health_tick_lib::` 前缀是因为 lib.rs 被编译为名为
- * `we_health_tick_lib` 的库 crate（在 Cargo.toml 的 [lib] 中定义的 name）。
+ * 使用 `ocean_health_tick_lib::` 前缀是因为 lib.rs 被编译为名为
+ * `ocean_health_tick_lib` 的库 crate（在 Cargo.toml 的 [lib] 中定义的 name）。
  *
  * 调用关系：
- *   main.rs → we_health_tick_lib::run() → lib.rs 中的 pub fn run()
+ *   main.rs → ocean_health_tick_lib::run() → lib.rs 中的 pub fn run()
  */
 fn main() {
     /* 调用 lib.rs 中定义的 run() 函数来启动 Tauri 应用
-     * `we_health_tick_lib` 是 crate 名（在 Cargo.toml 的 [lib].name 中定义）
+     * `ocean_health_tick_lib` 是 crate 名（在 Cargo.toml 的 [lib].name 中定义）
      * `::run()` 是该 crate 中导出的公开函数
      */
-    we_health_tick_lib::run();
+    ocean_health_tick_lib::run();
 }

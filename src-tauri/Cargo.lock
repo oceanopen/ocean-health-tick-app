@@ -2490,6 +2490,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "ocean-health-tick"
+version = "0.2.8"
+dependencies = [
+ "chrono",
+ "log",
+ "rand 0.10.1",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "specta",
+ "specta-typescript",
+ "sys-locale",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-autostart",
+ "tauri-plugin-log",
+ "tauri-plugin-process",
+ "tauri-plugin-shell",
+ "tauri-plugin-updater",
+ "tauri-specta",
+ "tokio",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4979,30 +5003,6 @@ dependencies = [
  "hashbrown 0.15.5",
  "indexmap 2.14.0",
  "semver",
-]
-
-[[package]]
-name = "we-health-tick"
-version = "0.2.8"
-dependencies = [
- "chrono",
- "log",
- "rand 0.10.1",
- "rusqlite",
- "serde",
- "serde_json",
- "specta",
- "specta-typescript",
- "sys-locale",
- "tauri",
- "tauri-build",
- "tauri-plugin-autostart",
- "tauri-plugin-log",
- "tauri-plugin-process",
- "tauri-plugin-shell",
- "tauri-plugin-updater",
- "tauri-specta",
- "tokio",
 ]
 
 [[package]]

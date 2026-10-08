@@ -8,7 +8,7 @@
 
 输入（环境变量）：
   GITEE_OWNER   Gitee 组织/用户名（ocean-open）
-  GITEE_REPO    Gitee 仓库名（we-health-tick-app）
+  GITEE_REPO    Gitee 仓库名（ocean-health-tick-app）
   TAG           发版 tag（如 v0.1.38）
   GITEE_TOKEN   Gitee 个人访问令牌
   GITHUB_SHA    tag 实际指向的 commit（target_commitish）
@@ -76,7 +76,7 @@ def main() -> None:
         body = json.dumps({
             "access_token": token,
             "tag_name": tag,
-            "name": f"We Health Tick {tag}",
+            "name": f"Ocean Health Tick {tag}",
             "body": f"Release {tag} (mirrored from GitHub)",
             "target_commitish": sha,
         }).encode()

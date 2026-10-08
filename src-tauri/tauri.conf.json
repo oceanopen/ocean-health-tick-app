@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "We Health Tick",
+  "productName": "Ocean Health Tick",
   "version": "0.2.8",
-  "identifier": "com.we.health.tick",
+  "identifier": "com.ocean.health.tick",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:7101",
@@ -23,8 +23,8 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/oceanopen/we-health-tick-app/releases/latest/download/latest.json",
-        "https://gitee.com/ocean-open/we-health-tick-app/raw/release-manifest/latest-gitee.json"
+        "https://github.com/oceanopen/ocean-health-tick-app/releases/latest/download/latest.json",
+        "https://gitee.com/ocean-open/ocean-health-tick-app/raw/release-manifest/latest-gitee.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEMyRDMyOUU0NzBFMzVBOUIKUldTYld1Tnc1Q25Ud2wwamFMOThFSEc5NnBDenRnd25vbk9FU1V3cDJmNlJLOUYwL3RRMjFmdHEK",
       "windows": {
@@ -39,8 +39,8 @@
     "publisher": "oceangao",
     "copyright": "Copyright (C) 2026 oceangao",
     "category": "Utility",
-    "shortDescription": "We Health Tick Desktop App",
-    "longDescription": "We Health Tick Desktop App",
+    "shortDescription": "Ocean Health Tick Desktop App",
+    "longDescription": "Ocean Health Tick Desktop App",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

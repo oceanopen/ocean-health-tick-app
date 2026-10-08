@@ -315,13 +315,13 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .items(&[&settings_item, &restart_item, &exit_item])
         .build()?;
 
-    // tooltip 从配置文件 productName 读取：dev 构建（tauri.dev.conf.json）为 "We Health Tick [DEV]"，
-    // release 构建（tauri.conf.json）为 "We Health Tick"，肉眼即可区分 dev/prod 产物。
+    // tooltip 从配置文件 productName 读取：dev 构建（tauri.dev.conf.json）为 "Ocean Health Tick [DEV]"，
+    // release 构建（tauri.conf.json）为 "Ocean Health Tick"，肉眼即可区分 dev/prod 产物。
     let tooltip = app
         .config()
         .product_name
         .as_deref()
-        .unwrap_or("We Health Tick");
+        .unwrap_or("Ocean Health Tick");
 
     TrayIconBuilder::with_id("tray")
         .icon(icon)

@@ -5,7 +5,7 @@
 # 同步本文件，否则前后端类型会静默漂移。本 workflow 跑 verify:bindings（重新生成并断言 git diff 为空）
 # 作为兜底，把漂移拦在 PR 阶段。
 #
-# 运行环境用 macos-latest 而非更便宜的 ubuntu-latest：gen:bindings 会编译 we_health_tick_lib，
+# 运行环境用 macos-latest 而非更便宜的 ubuntu-latest：gen:bindings 会编译 ocean_health_tick_lib，
 # 其依赖的 tauri/wry 在 Linux 需 webkit2gtk-4.1 等系统库（stock ubuntu 未预装，build.rs 会硬报错）；
 # macos 上 tauri 依赖的系统框架天然可用，无需额外装包，且与 release-assets 构建同 OS。
 name: CI

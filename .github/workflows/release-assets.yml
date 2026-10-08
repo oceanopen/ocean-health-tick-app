@@ -75,7 +75,7 @@ jobs:
           args: ${{ matrix.args }}
           updaterJsonPreferNsis: true
           tagName: ${{ github.ref_name }}
-          releaseName: 'We Health Tick ${{ github.ref_name }}'
+          releaseName: 'Ocean Health Tick ${{ github.ref_name }}'
           releaseDraft: false
           prerelease: false
 

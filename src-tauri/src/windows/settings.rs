@@ -36,7 +36,7 @@ pub async fn show_settings_window(
                 .config()
                 .product_name
                 .as_deref()
-                .unwrap_or("We Health Tick");
+                .unwrap_or("Ocean Health Tick");
             // 首开深链：分区直接拼进初始 URL 的 hash，由前端 HashRouter 解析。
             let url = match &navigate_to {
                 Some(section) => format!("settings.html#/{section}").into(),

@@ -22,8 +22,8 @@ jobs:
     env:
       # 注意 owner 拼写差异：GitHub=oceanopen（无连字符），Gitee=ocean-open（有连字符）
       GITEE_OWNER: ocean-open
-      GITEE_REPO: we-health-tick-app
-      GH_REPO: oceanopen/we-health-tick-app
+      GITEE_REPO: ocean-health-tick-app
+      GH_REPO: oceanopen/ocean-health-tick-app
       TAG: ${{ github.ref_name }}
     steps:
       # ---------- 前置：secrets 齐全性校验（缺失则硬失败）----------

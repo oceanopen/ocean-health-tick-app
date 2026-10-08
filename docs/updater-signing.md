@@ -1,6 +1,6 @@
 # 自动更新与签名配置
 
-本文档描述 We Health Tick 桌面应用的自动更新（updater）链路：签名密钥管理、`tauri.conf.json` 配置、GitHub Actions 发布工作流，以及完整的发版流程。
+本文档描述 Ocean Health Tick 桌面应用的自动更新（updater）链路：签名密钥管理、`tauri.conf.json` 配置、GitHub Actions 发布工作流，以及完整的发版流程。
 
 ## 整体链路
 
@@ -42,14 +42,14 @@ push tag v* ──► 触发两个 workflow
 ### 1. 生成密钥对（一次性）
 
 ```bash
-pnpm tauri signer generate -w ~/.tauri/we-health-tick.key
+pnpm tauri signer generate -w ~/.tauri/ocean-health-tick.key
 ```
 
 输出示例：
 
 ```
-私钥:  ~/.tauri/we-health-tick.key
-公钥:  ~/.tauri/we-health-tick.key.pub
+私钥:  ~/.tauri/ocean-health-tick.key
+公钥:  ~/.tauri/ocean-health-tick.key.pub
 ```
 
 - **私钥文件**：本地妥善保存，绝不入库；CI 构建时通过 Secret 注入。
@@ -69,8 +69,8 @@ pnpm tauri signer generate -w ~/.tauri/we-health-tick.key
     // 双源回退：plugin 按数组顺序串行尝试，GitHub 在前为主源、Gitee 在后为兜底。
     // 单源 5s 超时（check({ timeout: 5_000 })），最坏合计 10s。
     "endpoints": [
-      "https://github.com/oceanopen/we-health-tick-app/releases/latest/download/latest.json",
-      "https://gitee.com/ocean-open/we-health-tick-app/raw/release-manifest/latest-gitee.json"
+      "https://github.com/oceanopen/ocean-health-tick-app/releases/latest/download/latest.json",
+      "https://gitee.com/ocean-open/ocean-health-tick-app/raw/release-manifest/latest-gitee.json"
     ],
     "pubkey": "公钥Base64",
     "windows": {
@@ -91,7 +91,7 @@ pnpm tauri signer generate -w ~/.tauri/we-health-tick.key
 
 | Name                                 | Value                                        |
 | ------------------------------------ | -------------------------------------------- |
-| `TAURI_SIGNING_PRIVATE_KEY`          | `cat ~/.tauri/we-health-tick.key` 的完整内容 |
+| `TAURI_SIGNING_PRIVATE_KEY`          | `cat ~/.tauri/ocean-health-tick.key` 的完整内容 |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | （可选）密钥密码，未设密码则不需要           |
 
 > `GITHUB_TOKEN` 由 Actions 自动注入，无需手动配置。
@@ -108,7 +108,7 @@ pnpm tauri signer generate -w ~/.tauri/we-health-tick.key
 
 前置一次性准备：
 
-1. Gitee 组织 `ocean-open` 下**手动创建空仓库** `we-health-tick-app`（hub-mirror-action 跨组织不自动建仓）。
+1. Gitee 组织 `ocean-open` 下**手动创建空仓库** `ocean-health-tick-app`（hub-mirror-action 跨组织不自动建仓）。
 2. Gitee 组织设置 → SSH 公钥，添加与 `GITEE_PRIVATE_KEY` 配对的公钥。
 3. 生成 Gitee token 并配到 GitHub Secrets。
 
@@ -149,7 +149,7 @@ pnpm tauri signer generate -w ~/.tauri/we-health-tick.key
 6. **改写 manifest**：查 Gitee API 拿真实 `browser_download_url` → 把 `latest.json` 的 `platforms.*.url` 换成 Gitee URL → 输出 `latest-gitee.json`（签名/版本号不变）。
 7. **双推 orphan 分支**：把 `latest-gitee.json` force-push 到 `release-manifest` 分支，**同时推 GitHub 和 Gitee**（Gitee 端即时可用；GitHub 端留存审计，且对镜像 ref 处理策略稳健）。
 
-> Gitee 没有 `releases/latest/download/{file}` 静态快捷方式，故 manifest 托管在 `release-manifest` 分支走 raw URL：`https://gitee.com/ocean-open/we-health-tick-app/raw/release-manifest/latest-gitee.json`。raw 有 CDN 缓存延迟（~1 分钟），但 Gitee 仅作兜底、不依赖时效性。
+> Gitee 没有 `releases/latest/download/{file}` 静态快捷方式，故 manifest 托管在 `release-manifest` 分支走 raw URL：`https://gitee.com/ocean-open/ocean-health-tick-app/raw/release-manifest/latest-gitee.json`。raw 有 CDN 缓存延迟（~1 分钟），但 Gitee 仅作兜底、不依赖时效性。
 
 ---
 
@@ -182,20 +182,20 @@ push tag 后，两个 workflow 并行触发，约 10–15 分钟完成构建、�
 
 发版完成后，到 Release 页面确认以下产物齐全：
 
-- `We Health Tick_<ver>_universal.dmg` / `.app.tar.gz` / `.app.tar.gz.sig`（macOS）
-- `We Health Tick_<ver>_x64-setup.exe` / `.exe.sig`（Windows）
+- `Ocean Health Tick_<ver>_universal.dmg` / `.app.tar.gz` / `.app.tar.gz.sig`（macOS）
+- `Ocean Health Tick_<ver>_x64-setup.exe` / `.exe.sig`（Windows）
 - `latest.json`
 
 直接访问 endpoints URL 验证 manifest 可达：
 
 ```
-https://github.com/oceanopen/we-health-tick-app/releases/latest/download/latest.json
-https://gitee.com/ocean-open/we-health-tick-app/raw/release-manifest/latest-gitee.json
+https://github.com/oceanopen/ocean-health-tick-app/releases/latest/download/latest.json
+https://gitee.com/ocean-open/ocean-health-tick-app/raw/release-manifest/latest-gitee.json
 ```
 
 返回的 JSON 应包含当次版本号、各平台下载 URL 和 `signature` 字段。两份 manifest 的 `version` / `signature` 必须一致；Gitee 那份的 `platforms.*.url` 应全部指向 `gitee.com/.../releases/download/...`（无 github URL 残留）。
 
-Gitee 侧额外确认：`ocean-open/we-health-tick-app` 仓库存在对应 tag、Release 含全部二进制附件、`release-manifest` 分支含 `latest-gitee.json`。
+Gitee 侧额外确认：`ocean-open/ocean-health-tick-app` 仓库存在对应 tag、Release 含全部二进制附件、`release-manifest` 分支含 `latest-gitee.json`。
 
 ---
 

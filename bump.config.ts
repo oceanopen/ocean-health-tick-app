@@ -5,7 +5,7 @@ import { defineConfig } from 'bumpp';
 function bumpCargoVersion(filePath: string, newVersion: string): void {
   const content = readFileSync(filePath, 'utf-8');
   const updated = content.replace(
-    /(name = "we-health-tick"\nversion = ")[^"]*(")/,
+    /(name = "ocean-health-tick"\nversion = ")[^"]*(")/,
     `$1${newVersion}$2`,
   );
   writeFileSync(filePath, updated);

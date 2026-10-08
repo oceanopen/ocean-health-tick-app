@@ -1,5 +1,5 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "identifier": "com.we.health.tick.dev",
-  "productName": "We Health Tick [DEV]"
+  "identifier": "com.ocean.health.tick.dev",
+  "productName": "Ocean Health Tick [DEV]"
 }

@@ -203,9 +203,9 @@ pub fn run() {
         .plugin(
             tauri_plugin_autostart::Builder::new()
                 .app_name(if cfg!(debug_assertions) {
-                    "we-health-tick-dev"
+                    "ocean-health-tick-dev"
                 } else {
-                    "we-health-tick"
+                    "ocean-health-tick"
                 })
                 .build(),
         )

@@ -242,7 +242,7 @@ function AboutPage() {
         }}
         onClick={() => {
           import('@tauri-apps/plugin-shell').then(({ open }) => {
-            open('https://github.com/oceanopen/we-health-tick-app');
+            open('https://github.com/oceanopen/ocean-health-tick-app');
           });
         }}
       >
