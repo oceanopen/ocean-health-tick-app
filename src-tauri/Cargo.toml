@@ -56,6 +56,9 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 # 开机自启动：纯 Rust 驱动（shared/autostart.rs 经 ManagerExt 调用），前端不用 JS 绑定。
 tauri-plugin-autostart = "2"
+# 单实例锁：二次启动的进程直接退出，已有实例收回调唤起 panel。
+# 不加则 Windows 双击多次 = 多进程并行 → 多托盘图标 / 多定时器重复提醒 / 并发写 SQLite 配置库。
+tauri-plugin-single-instance = "2"
 rusqlite = { version = "0.32", features = ["bundled"] }
 tokio = { version = "1", features = ["time"] }
 chrono = "0.4"

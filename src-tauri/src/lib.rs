@@ -192,7 +192,22 @@ pub fn build_specta_builder() -> Builder<tauri::Wry> {
 pub fn run() {
     let specta_builder = build_specta_builder();
 
-    tauri::Builder::default()
+    // 单实例插件必须第一个注册（官方要求）：需早于其它插件初始化，才能可靠拦截二次启动。
+    // 二次启动的进程拿锁失败即退出，已有实例收到回调 → 唤起 panel 主窗口
+    // （复用 show_panel：按当前形态定位 + show + focus，窗口不存在则重建）。
+    // dev/release identifier 不同（tauri.dev.conf.json 的 .dev 后缀），单实例锁按
+    // identifier 区分 → dev 调试实例与 release 实例仍可并存，不破坏现有隔离设计。
+    // #[cfg(desktop)] 重绑定：该插件仅桌面平台有效，移动端构建不编译（lib.rs 保留 mobile
+    // 入口），且无需 mut（非 desktop 目标不会产生 unused_mut 警告）。
+    let builder = tauri::Builder::default();
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(
+        |app, _argv, _cwd| {
+            windows::panel::show_panel(app);
+        },
+    ));
+
+    builder
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
