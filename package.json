@@ -1,7 +1,7 @@
 {
   "name": "ocean-health-tick",
   "type": "module",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "private": false,
   "packageManager": "pnpm@10.18.3",
   "scripts": {
