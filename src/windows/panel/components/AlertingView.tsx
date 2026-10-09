@@ -43,7 +43,8 @@ export function AlertingView({ whisperReminder, isLongBreak, breakSkipCount, bre
       <Typography variant="subtitle1">
         {alertTitle}
       </Typography>
-      <Typography variant="caption" align="center" color="text.secondary" sx={{ px: 1 }}>
+      {/* pre-line：文案中的显式换行符渲染为真实换行（white-space: normal 会把 \n 折叠成空格） */}
+      <Typography variant="caption" align="center" color="text.secondary" sx={{ px: 1, whiteSpace: 'pre-line' }}>
         {whisperReminder}
       </Typography>
       {showSkipWarning && (

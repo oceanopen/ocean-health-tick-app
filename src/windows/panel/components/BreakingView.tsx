@@ -86,13 +86,14 @@ export function BreakingView({
           }}
         >
           <DirectionsRunIcon sx={{ fontSize: 16 }} />
-          <Typography variant="caption" sx={{ fontSize: 11, lineHeight: 1.3 }}>
+          {/* pre-line：自定义文案可含显式换行符，渲染为真实换行而非折叠成空格 */}
+          <Typography variant="caption" sx={{ fontSize: 11, lineHeight: 1.3, whiteSpace: 'pre-line' }}>
             {healthReminder}
           </Typography>
         </Box>
       )}
       {whisperReminder && (
-        <Typography variant="caption" align="center" color="text.secondary" sx={{ px: 1 }}>
+        <Typography variant="caption" align="center" color="text.secondary" sx={{ px: 1, whiteSpace: 'pre-line' }}>
           {whisperReminder}
         </Typography>
       )}

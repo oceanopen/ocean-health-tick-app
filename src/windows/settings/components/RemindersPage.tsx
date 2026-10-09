@@ -179,7 +179,7 @@ function RemindersPage() {
                     fullWidth
                     multiline
                     minRows={1}
-                    maxRows={4}
+                    maxRows={8}
                     size="small"
                     value={r.text}
                     placeholder={t('reminders:row.placeholder')}
