@@ -38,7 +38,7 @@ pub enum PanelForm {
     Tray,
     /// 托盘所在屏 work_area 右上角。
     TopRight,
-    /// 伪全屏：窗口铺满托盘所在屏 work_area（盖住菜单栏下方全部可用区域，置顶无装饰）。
+    /// 伪全屏：窗口铺满托盘所在屏完整边界（不预留任务栏/Dock 高度，置顶无装饰）。
     /// Alerting 起接管，Working（跳过 / 我回来了 / 重置）时退出并恢复小窗。
     /// 不用原生 set_fullscreen：对 borderless+transparent 窗口会补装标题栏装饰且
     /// 异步时序与 show/set_focus 竞争出「带标题栏的 maximized」污染形态（实测）。
@@ -104,7 +104,11 @@ fn sync_panel_form(app: &AppHandle, target: PanelForm) {
     let _ = app.emit_to("panel", EVENT_PANEL_FORM_CHANGED, target);
 }
 
-// 进入伪全屏：记录小窗高度 → 窗口铺满托盘所在屏 work_area（扣除菜单栏/Dock 的可用区域）。
+// 进入伪全屏：记录小窗高度 → 窗口铺满托盘所在屏的完整边界（不预留任务栏/菜单栏/Dock 高度）。
+//
+// 为什么铺完整边界而非 work_area：work_area 扣除任务栏后在游戏独占全屏场景下底部会露出
+// 一条任务栏高度的空白条，鼠标仍可在该区域操作屏幕，违背全屏提醒的强制休息意图；
+// 桌面场景下任务栏盖在遮罩上/下均可接受（macOS 菜单栏 z-order 恒在最上仍盖不住，行为不变）。
 //
 // 为什么不用原生 set_fullscreen（tao 0.35 macOS 实测两类污染）：
 //   1. borderless + transparent 窗口进入原生全屏时，系统会补装标题栏装饰——
@@ -133,17 +137,14 @@ fn enter_panel_fullscreen(app: &AppHandle) -> bool {
         })
         .unwrap_or(DEFAULT_PANEL_HEIGHT);
     with_panel_form(app, |f| f.last_small_height = small_height);
-    // 铺满托盘所在屏 work_area（多屏下与托盘同屏，行为可预期）；探测失败回退贴托盘小窗形态。
+    // 铺满托盘所在屏完整边界（多屏下与托盘同屏，行为可预期）；探测失败回退贴托盘小窗形态。
     let Some(monitor) = find_monitor_for_tray(app, "tray") else {
         // warn 而非 info：release 构建日志级别为 Warn，info 会被过滤导致生产排障不可见。
         log::warn!("monitor not found for fullscreen panel, fallback to tray panel");
         return false;
     };
-    let _ = panel.set_size(LogicalSize::new(
-        monitor.wa_width,
-        monitor.wa_height,
-    ));
-    let _ = panel.set_position(LogicalPosition::new(monitor.wa_x, monitor.wa_y));
+    let _ = panel.set_size(LogicalSize::new(monitor.width, monitor.height));
+    let _ = panel.set_position(LogicalPosition::new(monitor.x, monitor.y));
     true
 }
 
@@ -166,7 +167,7 @@ fn exit_panel_fullscreen(app: &AppHandle) {
 // 现读 DB（无缓存，保存后下一次唤起即生效；窗口接管期间热改配置，下次 phase-changed 读到新值即热切换）。
 // 三个取值显式分派：
 //   - tray / topRight：小窗形态（topRight 叠加在 tray 之上，仅定位不同）。
-//   - fullscreen：伪全屏（铺满 work_area，接管屏幕，Working 时退出）。
+//   - fullscreen：伪全屏（铺满完整显示器边界，接管屏幕，Working 时退出）。
 //   - DB 无值 / 非法值：回退 tray。
 fn panel_form_from_key(
     app: &AppHandle,
@@ -683,13 +684,18 @@ fn compute_panel_position(
         TaskbarEdge::Right => (icon_x - PANEL_WIDTH, icon_y),
     };
 
+    // 防御性上界塌缩：panel_height 可能大于 work_area 高度——典型时序是退出全屏瞬间
+    // （跳过/结束休息）set_size 尚未生效或 fit_panel 收到铺满期高度，inner_size 仍为铺满
+    // 整屏的窗口高度，此时 wa_y + wa_height - panel_height < wa_y，clamp(min>max) 直接
+    // panic。上界塌缩到工作区下/右边界保证 clamp 恒合法，后续 fit_panel 收到前端真实
+    // 小窗高度后再修正定位，仅存在一帧级的过渡偏移。
     let x = x.clamp(
         monitor.wa_x,
-        monitor.wa_x + monitor.wa_width - PANEL_WIDTH,
+        (monitor.wa_x + monitor.wa_width - PANEL_WIDTH).max(monitor.wa_x),
     );
     let y = y.clamp(
         monitor.wa_y,
-        monitor.wa_y + monitor.wa_height - panel_height,
+        (monitor.wa_y + monitor.wa_height - panel_height).max(monitor.wa_y),
     );
 
     (x, y)
@@ -733,7 +739,7 @@ fn create_panel(app: &tauri::AppHandle, tray: &tauri::tray::TrayIcon) {
         .inner_size(PANEL_WIDTH, DEFAULT_PANEL_HEIGHT);
 
     if let Ok(w) = panel.build() {
-        // 全屏形态下的懒创建有两条路径，均在此直接以铺满尺寸建窗（伪全屏）：
+        // 全屏形态下的懒创建有两条路径，均在此直接以铺满完整边界的尺寸建窗（伪全屏）：
         //   - 首次休息（启动后窗口从未创建）：监听器 sync(Fullscreen) 时窗口不存在，
         //     enter_panel_fullscreen 对 not-found 返回 true 保持状态，落到此处铺满；
         //   - 全屏中途 webview 意外销毁重建。
@@ -741,11 +747,8 @@ fn create_panel(app: &tauri::AppHandle, tray: &tauri::tray::TrayIcon) {
         // 切全屏布局。
         if current_panel_form(app) == PanelForm::Fullscreen {
             if let Some(monitor) = find_monitor_for_tray(app, "tray") {
-                let _ = w.set_size(LogicalSize::new(
-                    monitor.wa_width,
-                    monitor.wa_height,
-                ));
-                let _ = w.set_position(LogicalPosition::new(monitor.wa_x, monitor.wa_y));
+                let _ = w.set_size(LogicalSize::new(monitor.width, monitor.height));
+                let _ = w.set_position(LogicalPosition::new(monitor.x, monitor.y));
             } else {
                 position_panel_by_form(tray, &w);
             }
