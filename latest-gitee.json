@@ -1,0 +1,31 @@
+{
+  "version": "0.2.12",
+  "notes": "",
+  "pub_date": "2026-10-12T09:45:37.556Z",
+  "platforms": {
+    "darwin-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTYld1Tnc1Q25Ud3UvSFMyUUY0cmYxZHI4MVRSME4xR3kvUndtZXBmOHNIci9mS1Y4eGZVSHJDOGcvZ2VXWTVzcVo0Z2NZeUhQYUNzVVBmQlRBc2lJNnlkYU0vWkFwRXd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNzk4MTIyCWZpbGU6T2NlYW4gSGVhbHRoIFRpY2suYXBwLnRhci5negpXak8raVVCZTU2dGlnaWErL0E1WnkvQk5waVdtWGJNaFBzSmNRTTJSTUVMT3FMdzU1dlpCVWR0MnlEQUZpd3dnUkxqZFdjbnpsd1FrRlNIRjVLNm5Edz09Cg==",
+      "url": "https://gitee.com/ocean-open/ocean-health-tick-app/releases/download/v0.2.12/Ocean.Health.Tick_x64.app.tar.gz"
+    },
+    "darwin-x86_64-app": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTYld1Tnc1Q25Ud3UvSFMyUUY0cmYxZHI4MVRSME4xR3kvUndtZXBmOHNIci9mS1Y4eGZVSHJDOGcvZ2VXWTVzcVo0Z2NZeUhQYUNzVVBmQlRBc2lJNnlkYU0vWkFwRXd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNzk4MTIyCWZpbGU6T2NlYW4gSGVhbHRoIFRpY2suYXBwLnRhci5negpXak8raVVCZTU2dGlnaWErL0E1WnkvQk5waVdtWGJNaFBzSmNRTTJSTUVMT3FMdzU1dlpCVWR0MnlEQUZpd3dnUkxqZFdjbnpsd1FrRlNIRjVLNm5Edz09Cg==",
+      "url": "https://gitee.com/ocean-open/ocean-health-tick-app/releases/download/v0.2.12/Ocean.Health.Tick_x64.app.tar.gz"
+    },
+    "darwin-aarch64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTYld1Tnc1Q25Ud2xOeDFiY2d5d0twaENTclpUY3E3SWVxT3plMkRMUFVnSmlpQjgyNVdIdUZGdlowRXZVUGpyVXRMVE9CTGhrTGI4VkFqZTVNVEhKckEzVkZQNFlCRFFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNzk4MTM2CWZpbGU6T2NlYW4gSGVhbHRoIFRpY2suYXBwLnRhci5negpMUURadFM3WTJHOXJCSHBDQXpJRWt5WUZpSlhhS1lkVllVb0dvY0xyUEtPeG9JdXkvUFJlUDFFd1BuR0psNndNczlIYlY4R3dLZmtYZGZLZklPK3lDUT09Cg==",
+      "url": "https://gitee.com/ocean-open/ocean-health-tick-app/releases/download/v0.2.12/Ocean.Health.Tick_aarch64.app.tar.gz"
+    },
+    "darwin-aarch64-app": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTYld1Tnc1Q25Ud2xOeDFiY2d5d0twaENTclpUY3E3SWVxT3plMkRMUFVnSmlpQjgyNVdIdUZGdlowRXZVUGpyVXRMVE9CTGhrTGI4VkFqZTVNVEhKckEzVkZQNFlCRFFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNzk4MTM2CWZpbGU6T2NlYW4gSGVhbHRoIFRpY2suYXBwLnRhci5negpMUURadFM3WTJHOXJCSHBDQXpJRWt5WUZpSlhhS1lkVllVb0dvY0xyUEtPeG9JdXkvUFJlUDFFd1BuR0psNndNczlIYlY4R3dLZmtYZGZLZklPK3lDUT09Cg==",
+      "url": "https://gitee.com/ocean-open/ocean-health-tick-app/releases/download/v0.2.12/Ocean.Health.Tick_aarch64.app.tar.gz"
+    },
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTYld1Tnc1Q25Ud3BtZlltVWNEMkl0QkhpeERNSkxuU0syY3NybG9HQzVSUVlKTzZFRkpOdWk2akdTREEvQ2lnK2FOU1BuNTJ3Y2dVV1JhSWxuTVhtaGlSd01rbThTR2dBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNzk4MzM1CWZpbGU6T2NlYW4gSGVhbHRoIFRpY2tfMC4yLjEyX3g2NC1zZXR1cC5leGUKMDAwR1p6QkE4R0hNMmhaV1lsbTlpMGdYNzNSRUNTUGRJempXbFBURitVSSt3MlFDWnBqSmR3VkFLWnZ0S0RlelM5OUVkLzI3V2VnTnhBSWFPa1pmQWc9PQo=",
+      "url": "https://gitee.com/ocean-open/ocean-health-tick-app/releases/download/v0.2.12/Ocean.Health.Tick_0.2.12_x64-setup.exe"
+    },
+    "windows-x86_64-nsis": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTYld1Tnc1Q25Ud3BtZlltVWNEMkl0QkhpeERNSkxuU0syY3NybG9HQzVSUVlKTzZFRkpOdWk2akdTREEvQ2lnK2FOU1BuNTJ3Y2dVV1JhSWxuTVhtaGlSd01rbThTR2dBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNzk4MzM1CWZpbGU6T2NlYW4gSGVhbHRoIFRpY2tfMC4yLjEyX3g2NC1zZXR1cC5leGUKMDAwR1p6QkE4R0hNMmhaV1lsbTlpMGdYNzNSRUNTUGRJempXbFBURitVSSt3MlFDWnBqSmR3VkFLWnZ0S0RlelM5OUVkLzI3V2VnTnhBSWFPa1pmQWc9PQo=",
+      "url": "https://gitee.com/ocean-open/ocean-health-tick-app/releases/download/v0.2.12/Ocean.Health.Tick_0.2.12_x64-setup.exe"
+    }
+  }
+}
