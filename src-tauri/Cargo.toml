@@ -1,6 +1,6 @@
 [package]
 name = "ocean-health-tick"
-version = "0.2.11"
+version = "0.2.12"
 description = "Ocean Health Tick Desktop App"
 authors = ["oceangao"]
 license = ""
