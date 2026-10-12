@@ -12,8 +12,8 @@
 //! 同时 [[bin]] 产物落在 target/<profile>/ 根，与 WebView2Loader.dll 同目录，
 //! Windows 上也不需要 DLL 复制 hack。
 
-use specta_typescript::Typescript;
 use ocean_health_tick_lib::build_specta_builder;
+use specta_typescript::Typescript;
 
 fn main() {
     // CARGO_MANIFEST_DIR 在编译时由 cargo 注入，指向 src-tauri/ 的绝对路径。

@@ -1,9 +1,9 @@
 import InfoIcon from '@mui/icons-material/Info';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
-import SkipNextIcon from '@mui/icons-material/SkipNext';
-import { Box, Button, IconButton, Typography, useTheme } from '@mui/material';
+import { Box, Button, Typography, useTheme } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { PHASE_RING_COLORS } from '../phaseColors';
+import { SkipButton } from './SkipButton';
 
 interface AlertingViewProps {
   whisperReminder: string;
@@ -71,21 +71,7 @@ export function AlertingView({ whisperReminder, isLongBreak, breakSkipCount, bre
       <Button variant="contained" fullWidth onClick={onStartBreak} sx={{ mt: 1, textTransform: 'none' }}>
         {t('panel:action.startBreak')}
       </Button>
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <IconButton
-          aria-label={skipLabel}
-          onClick={onSkip}
-          size="small"
-          color="secondary"
-          disabled={!skipAllowed}
-          sx={{ 'opacity': 0.5, 'transition': 'opacity 0.2s', '&:hover': { opacity: 0.8 } }}
-        >
-          <SkipNextIcon />
-        </IconButton>
-        <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10 }}>
-          {skipLabel}
-        </Typography>
-      </Box>
+      <SkipButton label={skipLabel} disabled={!skipAllowed} onClick={onSkip} />
     </Box>
   );
 }

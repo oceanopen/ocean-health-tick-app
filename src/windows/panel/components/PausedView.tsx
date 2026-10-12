@@ -4,6 +4,7 @@ import PauseCircleFilledIcon from '@mui/icons-material/PauseCircleFilled';
 import { Box, Button, Typography, useTheme } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { PHASE_RING_COLORS } from '../phaseColors';
+import { SkipButton } from './SkipButton';
 
 interface PausedViewProps {
   remainingSeconds: number;
@@ -11,6 +12,7 @@ interface PausedViewProps {
   quietHours: QuietHours;
   dndHours: DndHours;
   onResume: () => void;
+  onSkipQuiet: () => void;
 }
 
 function formatHMS(seconds: number): string {
@@ -54,6 +56,7 @@ export function PausedView({
   quietHours,
   dndHours,
   onResume,
+  onSkipQuiet,
 }: PausedViewProps) {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -125,6 +128,11 @@ export function PausedView({
       >
         {t('panel:action.resume')}
       </Button>
+      {/* 休息时段（Quiet）独有：「跳过」——本时段内不再弹出提醒窗口，
+          计时暂停与时段结束自动恢复不受影响；manual/dnd 状态不显示。
+          复用与其他休息窗口一致的底部 SkipButton 形态与「跳过」文案；
+          单击生效（不占用休息轮次，无需防误触连点）。 */}
+      {isQuiet && <SkipButton label={t('panel:action.skipBreak')} onClick={onSkipQuiet} />}
     </Box>
   );
 }

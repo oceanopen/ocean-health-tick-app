@@ -75,7 +75,7 @@ jobs:
             bundle: {
               targets: ["msi", "nsis"],
               publisher: process.env.CUSTOM_APP_COMPANY_NAME,
-              copyright: `版权所有©${new Date().getFullYear()}`,
+              copyright: `版权所有 © ${new Date().getFullYear()}`,
               shortDescription: "健康打卡桌面小工具",
               createUpdaterArtifacts: false,
             },

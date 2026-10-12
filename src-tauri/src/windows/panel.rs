@@ -219,11 +219,23 @@ fn panel_form_by_quiet_window_config(app: &AppHandle) -> PanelForm {
     )
 }
 
-// 已构建的托盘菜单项引用，用于语言切换时动态更新文案（MenuItem::set_text）。
+// 已构建的托盘菜单项引用，用于语言切换 / 状态切换时动态更新（MenuItem::set_text / set_enabled）。
 struct TrayMenuItems {
     settings: MenuItem<tauri::Wry>,
+    rest: MenuItem<tauri::Wry>,
     restart: MenuItem<tauri::Wry>,
     exit: MenuItem<tauri::Wry>,
+}
+
+// rest 项同步内核：按当前 timer 状态刷新「进入休息/休息中」文案与置灰（MenuItem::set_text/set_enabled）。
+// 供 refresh_menu_texts（已持 TrayMenuItems 锁）与 refresh_rest_menu_item（自持锁）共用；
+// 两个入口不可互相调用——同一 std::sync::Mutex 重复加锁会死锁，故拆共享内核而非互相调用。
+fn sync_rest_item(items: &TrayMenuItems, app: &AppHandle) {
+    let (key, enabled) = crate::timer::rest_menu_state(app);
+    let _ = items
+        .rest
+        .set_text(menu_text(current_language(app), key));
+    let _ = items.rest.set_enabled(enabled);
 }
 
 // 语言切换时原地刷新托盘菜单文案，无需重建菜单或重启应用。
@@ -241,6 +253,21 @@ pub fn refresh_menu_texts(app: &AppHandle) {
         .set_text(menu_text(lang, "settings"));
     let _ = items.restart.set_text(menu_text(lang, "restart"));
     let _ = items.exit.set_text(menu_text(lang, "exit"));
+    // rest 项文案随语言刷新，同时按当前 timer 状态同步文案（进入休息/休息中）与置灰。
+    sync_rest_item(&items, app);
+}
+
+// 按当前 timer 状态刷新「进入休息 / 休息中」菜单项（文案 + 置灰）。
+// phase-changed 与任意 app-config-changed（长休息间隔等配置影响预判文案）两条路径共用；
+// 与 refresh_menu_texts 的区别是不刷新语言、只同步状态。timer 未初始化时保守置灰。
+fn refresh_rest_menu_item(app: &AppHandle) {
+    let Some(state) = app.try_state::<Mutex<TrayMenuItems>>() else {
+        return;
+    };
+    let Ok(items) = state.lock() else {
+        return;
+    };
+    sync_rest_item(&items, app);
 }
 
 /// 查询当前 Control 键是否被按下。
@@ -289,12 +316,22 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     )))
     .expect("failed to load tray icon");
 
-    // 右键菜单：系统设置 / 重启 / 退出。文案随当前语言偏好（app_config language，三态）。
+    // 右键菜单：系统设置 / 进入休息 / 重启 / 退出。文案随当前语言偏好（app_config language，三态）。
+    // rest 项动态：Working 可点击（进入休息/进入长休息），Alerting/Breaking 置灰（休息中/长休息中），
+    // 其余阶段置灰（进入休息/进入长休息）；启动恒为 Working（fresh_working 先于本函数），
+    // 初始即「进入休息」可点击，后续由 phase-changed / app-config-changed 监听器刷新。
     let lang = current_language(app.handle());
     let settings_item = MenuItem::with_id(
         app,
         "settings",
         menu_text(lang, "settings"),
+        true,
+        None::<&str>,
+    )?;
+    let rest_item = MenuItem::with_id(
+        app,
+        "rest",
+        menu_text(lang, "restEnter"),
         true,
         None::<&str>,
     )?;
@@ -313,7 +350,12 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         None::<&str>,
     )?;
     let menu = MenuBuilder::new(app)
-        .items(&[&settings_item, &restart_item, &exit_item])
+        .items(&[
+            &settings_item,
+            &rest_item,
+            &restart_item,
+            &exit_item,
+        ])
         .build()?;
 
     // tooltip 从配置文件 productName 读取：dev 构建（tauri.dev.conf.json）为 "Ocean Health Tick [DEV]"，
@@ -346,6 +388,20 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             }
             "restart" => app.request_restart(),
             "exit" => app.exit(0),
+            // 复用 WorkingView「休息」按钮的 manual_break：Working → Breaking（含长休息判定、
+            // reminder 抽取、phase-changed 广播唤起窗口）。仅在 Working 有效，非 Working
+            // （菜单已置灰，理论不可达）失败仅记日志。spawn 调度与 settings 项同理。
+            "rest" => {
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = crate::timer::manual_break(
+                        app.clone(),
+                        app.state::<crate::timer::TimerState>(),
+                    ) {
+                        log::warn!("manual_break from tray menu failed: {e}");
+                    }
+                });
+            }
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
@@ -396,9 +452,10 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         })
         .build(app)?;
 
-    // 保存菜单项句柄，供 refresh_menu_texts 在语言切换时动态更新文案。
+    // 保存菜单项句柄，供 refresh_menu_texts / refresh_rest_menu_item 动态更新文案与置灰。
     app.manage(Mutex::new(TrayMenuItems {
         settings: settings_item,
+        rest: rest_item,
         restart: restart_item,
         exit: exit_item,
     }));
@@ -434,6 +491,8 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             match phase {
                 Some(phase) => {
                     set_tray_icon_by_phase(&app_handle, phase);
+                    // rest 菜单项随状态机联动（进入休息/休息中 × 普通/长 + 置灰）。
+                    refresh_rest_menu_item(&app_handle);
                     match phase {
                         Phase::Alerting | Phase::Breaking => {
                             let is_long = payload.as_ref().is_some_and(|p| p.is_long_break);
@@ -457,11 +516,19 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                             //   - Manual（手动暂停）：沿用当前形态不跳变，弹窗常驻
                             match payload.as_ref().map(|p| p.pause_source) {
                                 Some(PauseSource::Quiet) => {
-                                    sync_panel_form(
-                                        &app_handle,
-                                        panel_form_by_quiet_window_config(&app_handle),
-                                    );
-                                    show_panel(&app_handle);
+                                    // 用户已「跳过本次提醒」：不自动弹窗，仅归位 Tray 形态并收起
+                                    // （与 Dnd 分支同构）。计时暂停与时段结束自动恢复不受影响；
+                                    // 托盘左键点击仍可手动唤起查看（找回窗口语义不变）。
+                                    if crate::timer::quiet_reminder_skipped(&app_handle) {
+                                        sync_panel_form(&app_handle, PanelForm::Tray);
+                                        hide_panel(&app_handle);
+                                    } else {
+                                        sync_panel_form(
+                                            &app_handle,
+                                            panel_form_by_quiet_window_config(&app_handle),
+                                        );
+                                        show_panel(&app_handle);
+                                    }
                                 }
                                 Some(PauseSource::Dnd) => {
                                     sync_panel_form(&app_handle, PanelForm::Tray);
@@ -522,6 +589,9 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             if value.get("key").and_then(|v| v.as_str()) == Some(LANGUAGE_KEY) {
                 refresh_menu_texts(&lang_handle);
             }
+            // 任意配置变化都可能影响 rest 项预判（long_break_enabled/interval 改变
+            // 「进入休息/进入长休息」文案），刷新一次（内部读 timer 状态，开销可忽略）。
+            refresh_rest_menu_item(&lang_handle);
         },
     );
 

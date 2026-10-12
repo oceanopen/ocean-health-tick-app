@@ -21,6 +21,7 @@ export const commands = {
 	reset: () => typedError<null, string>(__TAURI_INVOKE("reset")),
 	manualBreak: () => typedError<null, string>(__TAURI_INVOKE("manual_break")),
 	skipBreak: () => typedError<null, string>(__TAURI_INVOKE("skip_break")),
+	skipQuietReminder: () => typedError<null, string>(__TAURI_INVOKE("skip_quiet_reminder")),
 };
 
 /* Constants */

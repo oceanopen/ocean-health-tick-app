@@ -45,6 +45,7 @@ pub fn build_specta_builder() -> Builder<tauri::Wry> {
             timer::reset,
             timer::manual_break,
             timer::skip_break,
+            timer::skip_quiet_reminder,
         ])
         // AppConfigChangedPayload 不出现在任何 command 签名中（仅 set_app_config 内部 emit），
         // 用 typ 显式注册，让 specta 把它导出到 bindings.ts 供前端 listen 复用。

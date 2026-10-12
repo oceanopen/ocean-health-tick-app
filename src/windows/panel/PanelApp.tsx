@@ -1,8 +1,8 @@
 import { alpha, Box } from '@mui/material';
 import { commands } from '@src/shared/bindings';
-import { logOnError } from '@src/shared/commands';
+import { logOnError, unwrap } from '@src/shared/commands';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AlertingView } from './components/AlertingView';
 import { BreakingView } from './components/BreakingView';
@@ -90,6 +90,14 @@ export default function PanelApp() {
       = phase === 'working'
         || (phase === 'paused' && pauseSource === 'dnd' && form !== 'fullscreen');
   }, [phase, pauseSource, form]);
+
+  // 休息时段「跳过本次提醒」：后端记录被跳过时段（本时段内不再自动弹窗，时段结束
+  // 自动恢复不受影响），仅在命令成功后隐藏窗口——失败时保持弹窗可重试。
+  const skipQuietReminder = useCallback(() => {
+    void unwrap(commands.skipQuietReminder())
+      .then(() => getCurrentWindow().hide())
+      .catch(err => console.warn('[skipQuietReminder]', err));
+  }, []);
 
   // 任意 phase 切换 / reminder 变化导致 root 高度变化时，重新 fitPanel 让窗口高度跟随。
   // ResizeObserver 在 observe 后会异步触发一次首回调，等价于原 mount 即 fit 的语义。
@@ -234,6 +242,7 @@ export default function PanelApp() {
                 quietHours={quietHours}
                 dndHours={dndHours}
                 onResume={togglePause}
+                onSkipQuiet={skipQuietReminder}
               />
             )}
           />

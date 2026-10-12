@@ -1,9 +1,9 @@
 import DirectionsRunIcon from '@mui/icons-material/DirectionsRun';
 import InfoIcon from '@mui/icons-material/Info';
-import SkipNextIcon from '@mui/icons-material/SkipNext';
-import { Box, Divider, IconButton, Typography } from '@mui/material';
+import { Box, Divider, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { CountdownRing } from './CountdownRing';
+import { SkipButton } from './SkipButton';
 
 interface BreakingViewProps {
   displayTime: string;
@@ -98,21 +98,7 @@ export function BreakingView({
         </Typography>
       )}
       <Divider sx={{ width: '100%' }} />
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <IconButton
-          aria-label={skipLabel}
-          onClick={onSkip}
-          size="small"
-          color="secondary"
-          disabled={!skipAllowed}
-          sx={{ 'opacity': 0.5, 'transition': 'opacity 0.2s', '&:hover': { opacity: 0.8 } }}
-        >
-          <SkipNextIcon />
-        </IconButton>
-        <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10 }}>
-          {skipLabel}
-        </Typography>
-      </Box>
+      <SkipButton label={skipLabel} disabled={!skipAllowed} onClick={onSkip} />
     </Box>
   );
 }

@@ -73,6 +73,11 @@ struct TimerInner {
     /// 上次 skip_break 点击的 epoch 秒，用于跳过宽限期判定（点击后 3 秒内不触发活动暂停，
     /// 避免点击「跳过」按钮的鼠标活动被误判为「在用电脑」）。
     last_skip_epoch: Option<i64>,
+    /// 用户在休息时段（Quiet）弹窗点击「跳过本次提醒」时命中的时段 (start, end)。
+    /// 内存字段（不持久化，重启自然失效）：panel.rs 的 Quiet 弹窗分支据此抑制自动唤起；
+    /// 计时暂停与时段结束自动恢复行为完全不变。run_timer_loop 每秒校验，一旦不再处于
+    /// 任何启用的 quiet 时段内（时段结束 / 开关关闭 / 配置清空）即清空——下个时段恢复提醒。
+    quiet_skip_period: Option<(String, String)>,
 }
 
 // Tauri 全局状态容器：在 init 中通过 app.manage(TimerState) 注册，
@@ -460,19 +465,25 @@ fn read_dnd_hours_enabled(conn: &Connection) -> bool {
 }
 
 // 判断某 HH:mm 时刻是否落在任一时段列表内（quiet_hours / dnd_hours 共用的纯区间判定）。
-// - 同日时段（start ≤ end，如 12:00-14:00）：start <= hhmm && hhmm < end
-// - 跨午夜时段（start > end，如 22:00-06:00）：hhmm >= start || hhmm < end
+// 单时段区间语义见 is_in_period；find_active_period 也复用该判定，保证边界语义单点维护。
 // 注：用字符串比较合法，因为 "HH:mm" 定长格式字典序等价于时间序（"09:00" < "12:00" < "22:00"）。
 fn is_in_periods(periods: &[(String, String)], hhmm: &str) -> bool {
-    periods.iter().any(|(start, end)| {
-        if start <= end {
-            // 同日时段：[start, end)
-            hhmm >= start.as_str() && hhmm < end.as_str()
-        } else {
-            // 跨午夜时段：[start, 24:00) ∪ [00:00, end)
-            hhmm >= start.as_str() || hhmm < end.as_str()
-        }
-    })
+    periods
+        .iter()
+        .any(|(start, end)| is_in_period(start, end, hhmm))
+}
+
+// 单时段区间判定（is_in_periods 的内核）：
+// - 同日时段（start ≤ end，如 12:00-14:00）：start <= hhmm && hhmm < end
+// - 跨午夜时段（start > end，如 22:00-06:00）：hhmm >= start || hhmm < end
+fn is_in_period(start: &str, end: &str, hhmm: &str) -> bool {
+    if start <= end {
+        // 同日时段：[start, end)
+        hhmm >= start && hhmm < end
+    } else {
+        // 跨午夜时段：[start, 24:00) ∪ [00:00, end)
+        hhmm >= start || hhmm < end
+    }
 }
 
 // 统一时段命中判定：当前时刻命中的暂停来源；两类时段均不命中（或开关关闭）返回 None。
@@ -492,6 +503,15 @@ fn active_pause_source(
         return Some(PauseSource::Quiet);
     }
     None
+}
+
+// 找出当前时刻命中的第一个时段（返回 (start, end) 的 owned 拷贝）。
+// 场景：skip_quiet_reminder 记录被跳过的具体时段（quiet_hours / dnd_hours 共用判定，当前仅 quiet 用）。
+fn find_active_period(periods: &[(String, String)], hhmm: &str) -> Option<(String, String)> {
+    periods
+        .iter()
+        .find(|(start, end)| is_in_period(start, end, hhmm))
+        .cloned()
 }
 
 // 从 reminders 配置随机抽取两条：返回 (whisper, health)。
@@ -562,6 +582,7 @@ fn fresh_working(conn: &Connection) -> TimerInner {
         break_paused: false,
         break_start_epoch: None,
         last_skip_epoch: None,
+        quiet_skip_period: None,
     }
 }
 
@@ -595,6 +616,7 @@ fn apply_start_work(inner: &mut TimerInner, work_total_secs: i64, now: i64) {
     inner.current_whisper_reminder = String::new();
     inner.current_health_reminder = String::new();
     inner.is_long_break = false;
+    inner.quiet_skip_period = None;
 }
 
 // 工作倒计时归零：抽取 reminder + 按 rest_confirm 分流。
@@ -782,7 +804,13 @@ async fn run_timer_loop(app: AppHandle, inner: Arc<Mutex<TimerInner>>) {
                 let prev = state.phase;
                 let app_config_state = app.state::<AppConfigState>();
                 if let Ok(conn) = app_config_state.0.lock() {
+                    // fresh_working 会清空 quiet_skip_period（全新状态）；但跨午夜 quiet 时段
+                    // （如 22:00-06:00）内跨天时用户仍处于同一时段——必须保留标记，否则午夜
+                    // 一过已跳过的弹窗会复活。恢复后交由下方标记清理块按最新配置校验
+                    // （届时若已不在任何 quiet 时段内则照常清空，语义不变）。
+                    let quiet_skip = state.quiet_skip_period.take();
                     *state = fresh_working(&conn);
+                    state.quiet_skip_period = quiet_skip;
                     phase_change_payload = Some(build_payload(&state, Some(prev)));
                 } else {
                     log::warn!("app_config lock poisoned, skip cross-day reset");
@@ -843,6 +871,15 @@ async fn run_timer_loop(app: AppHandle, inner: Arc<Mutex<TimerInner>>) {
                 &dnd_periods,
                 &now_hhmm(),
             );
+
+            // 休息时段「跳过本次提醒」标记清理：一旦不再处于任何启用的 quiet 时段内
+            // （时段结束 / quiet 开关关闭 / 配置清空），清空标记——下个时段重新恢复
+            // 弹窗提醒（「不影响下次休息时段」）。标记仅在 Paused(Quiet) 可写入。
+            if state.quiet_skip_period.is_some()
+                && !(quiet_enabled && is_in_periods(&quiet_periods, &now_hhmm()))
+            {
+                state.quiet_skip_period = None;
+            }
             match (state.phase, hit, state.paused_source) {
                 // ① 进入：任意非 Paused 阶段强制进 Paused（来源显式传入）
                 (phase, Some(src), _) if phase != Phase::Paused => {
@@ -1126,6 +1163,61 @@ pub fn current_pause_source(app: &AppHandle) -> PauseSource {
     }
 }
 
+// 查询「本次休息时段提醒是否已被用户跳过」：panel.rs 的 Quiet 弹窗分支据此抑制自动唤起。
+// 标记由 run_timer_loop 每秒清理（离开 quiet 时段即清空），此处不做时段复验；
+// timer 未初始化 / 锁 poisoned 保守返回 false（宁可多弹一次，不静默吞提醒）。
+pub fn quiet_reminder_skipped(app: &AppHandle) -> bool {
+    let Some(state) = app.try_state::<TimerState>() else {
+        return false;
+    };
+    lock_inner(&state.inner)
+        .quiet_skip_period
+        .is_some()
+}
+
+// 托盘菜单「进入休息 / 休息中」项的状态：(menu_text key, 是否可点击)。
+//   - Working：可点击，经 read_break_plan（递增前 completed_cycles）预判本次休息类型——
+//     与 manual_break 实际执行的是同一函数同一输入，文案与行为编译期保证一致
+//     （前端 nextBreakIsLong 同公式同输入，三方天然一致）
+//   - Alerting / Breaking：休息已开始（或提醒待确认），置灰显示 休息中/长休息中
+//   - Waiting / Paused：manual_break 仅 Working 有效，置灰显示 进入休息/进入长休息
+// 锁顺序保持 inner → app_config（与 command 模式一致）。timer 未初始化时保守置灰。
+pub fn rest_menu_state(app: &AppHandle) -> (&'static str, bool) {
+    let Some(state) = app.try_state::<TimerState>() else {
+        return ("restEnter", false);
+    };
+    let inner = lock_inner(&state.inner);
+    match inner.phase {
+        Phase::Working => {
+            let is_long = {
+                let app_config_state = app.state::<AppConfigState>();
+                match app_config_state.0.lock() {
+                    // read_break_plan 同时返回时长秒数，此处仅取长休息判定位（开销可忽略）。
+                    Ok(conn) => read_break_plan(&conn, inner.completed_cycles).0,
+                    Err(_) => false,
+                }
+            };
+            (
+                if is_long {
+                    "restEnterLong"
+                } else {
+                    "restEnter"
+                },
+                true,
+            )
+        }
+        Phase::Alerting | Phase::Breaking => (
+            if inner.is_long_break {
+                "restActiveLong"
+            } else {
+                "restActive"
+            },
+            false,
+        ),
+        Phase::Waiting | Phase::Paused => ("restEnter", false),
+    }
+}
+
 // ============================================================
 // 状态转移 commands（前端按钮 invoke 入口）
 // ============================================================
@@ -1360,6 +1452,33 @@ pub fn skip_break(app: AppHandle, state: State<'_, TimerState>) -> Result<(), St
     Ok(())
 }
 
+// 跳过本次休息时段提醒（Paused + Quiet 弹窗上的「跳过本次提醒」按钮）：
+// 记录当前命中的 quiet 时段 (start, end) 到 quiet_skip_period，panel.rs 的 Quiet 弹窗分支
+// 据此抑制自动唤起；计时暂停与时段结束自动恢复行为完全不变（只抑制提醒，不跳过暂停）。
+// 标记由 tick 在离开 quiet 时段时清空——下个时段照常提醒。与 skip_break（工作休息跳过，
+// 会推进轮次）语义完全独立，不共用任何字段。
+#[tauri::command]
+#[specta::specta]
+pub fn skip_quiet_reminder(app: AppHandle, state: State<'_, TimerState>) -> Result<(), String> {
+    let mut inner = lock_inner(&state.inner);
+    if inner.phase != Phase::Paused || inner.paused_source != PauseSource::Quiet {
+        return Err("skip_quiet_reminder only valid in Paused(Quiet) phase".into());
+    }
+    let period = {
+        let app_config_state = app.state::<AppConfigState>();
+        let conn = app_config_state
+            .0
+            .lock()
+            .map_err(|e| e.to_string())?;
+        find_active_period(&read_quiet_hours(&conn), &now_hhmm())
+    };
+    match period {
+        Some(period) => inner.quiet_skip_period = Some(period),
+        None => return Err("no active quiet period at skip time".into()),
+    }
+    Ok(())
+}
+
 // ============================================================
 // 单元测试：时段判定与暂停来源转移（纯函数，不依赖 Tauri 运行时）
 // ============================================================
@@ -1392,6 +1511,7 @@ mod tests {
             break_paused: false,
             break_start_epoch: None,
             last_skip_epoch: None,
+            quiet_skip_period: None,
         }
     }
 

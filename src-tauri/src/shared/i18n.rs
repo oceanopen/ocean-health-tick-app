@@ -43,9 +43,17 @@ pub fn current_language(app: &AppHandle) -> ResolvedLanguage {
 pub fn menu_text(lang: ResolvedLanguage, key: &str) -> &'static str {
     match (lang, key) {
         (ResolvedLanguage::ZhCn, "settings") => "系统设置",
+        (ResolvedLanguage::ZhCn, "restEnter") => "进入休息",
+        (ResolvedLanguage::ZhCn, "restEnterLong") => "进入长休息",
+        (ResolvedLanguage::ZhCn, "restActive") => "休息中",
+        (ResolvedLanguage::ZhCn, "restActiveLong") => "长休息中",
         (ResolvedLanguage::ZhCn, "restart") => "重启",
         (ResolvedLanguage::ZhCn, "exit") => "退出",
         (ResolvedLanguage::En, "settings") => "Settings",
+        (ResolvedLanguage::En, "restEnter") => "Enter Break",
+        (ResolvedLanguage::En, "restEnterLong") => "Enter Long Break",
+        (ResolvedLanguage::En, "restActive") => "On Break",
+        (ResolvedLanguage::En, "restActiveLong") => "On Long Break",
         (ResolvedLanguage::En, "restart") => "Restart",
         (ResolvedLanguage::En, "exit") => "Quit",
         _ => "",
